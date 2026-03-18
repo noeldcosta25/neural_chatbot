@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#080a14" />
+  <title>NeuralChat — AI Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Clash+Display:wght@400;500;600;700&family=Satoshi:wght@300;400;500;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Fira+Code:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ══ CANVAS BG ══════════════════════════════════════════ -->
+  <canvas id="bg-canvas"></canvas>
+
+  <!-- ══ TOAST ════════════════════════════════════════════════ -->
+  <div id="toast-container"></div>
+
+  <!-- ══ API KEY MODAL ════════════════════════════════════════ -->
+  <div id="modal-backdrop" class="hidden">
+    <div class="modal">
+      <div class="modal-orb"></div>
+      <div class="modal-orb2"></div>
+
+      <div class="modal-header">
+        <div class="modal-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"
+              stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div>
+          <div class="modal-title">Connect to Groq</div>
+          <div class="modal-sub-title">Enter your API key to begin</div>
+        </div>
+      </div>
+
+      <p class="modal-desc">
+        Your key lives only in your browser — never sent anywhere except directly to Groq.
+        Get a free key at <a href="https://console.groq.com" target="_blank" rel="noopener">console.groq.com</a>
+      </p>
+
+      <div class="field">
+        <label class="field-label">API KEY</label>
+        <div class="field-input-wrap">
+          <input
+            id="api-key-input"
+            type="password"
+            placeholder="gsk_••••••••••••••••••••••••"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button id="eye-btn" class="eye-btn" title="Toggle visibility">
+            <svg id="eye-show" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+            </svg>
+            <svg id="eye-hide" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+          </button>
+        </div>
+        <span class="field-hint">Starts with <code>gsk_</code> — stored in localStorage</span>
+      </div>
+
+      <button id="modal-save" class="btn-primary">
+        <span>Start Chatting</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ MOBILE OVERLAY ═══════════════════════════════════════ -->
+  <div id="overlay"></div>
+
+  <!-- ══ DELETE CONFIRM ═══════════════════════════════════════ -->
+  <div id="delete-confirm-backdrop" class="delete-confirm-backdrop hidden">
+    <div class="delete-confirm-box">
+      <div class="delete-confirm-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      </div>
+      <div class="delete-confirm-text">
+        <div class="delete-confirm-title">Delete chat?</div>
+        <div class="delete-confirm-sub">This conversation will be permanently removed.</div>
+      </div>
+      <div class="delete-confirm-btns">
+        <button id="delete-confirm-no"  class="delete-btn-no">Cancel</button>
+        <button id="delete-confirm-yes" class="delete-btn-yes">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ APP ══════════════════════════════════════════════════ -->
+  <div id="app">
+
+    <!-- ── SIDEBAR ─────────────────────────────────────────── -->
+    <aside id="sidebar">
+
+      <div class="sb-logo">
+        <div class="sb-logo-mark">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2C6.5 2 3 6.5 3 11c0 2.8 1.2 5.2 3 6.8L7.5 22h9l1.5-4.2C20 16.2 21 13.8 21 11c0-4.5-3.5-9-9-9z" fill="white" opacity="0.95"/>
+            <circle cx="9" cy="11" r="1.7" fill="url(#lg1)"/>
+            <circle cx="15" cy="11" r="1.7" fill="url(#lg1)"/>
+            <defs><linearGradient id="lg1" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#f97316"/><stop offset="100%" stop-color="#ec4899"/></linearGradient></defs>
+          </svg>
+        </div>
+        <div class="sb-logo-text">
+          <div class="sb-logo-name">NeuralChat</div>
+          <div class="sb-logo-sub">Multi-Chat · Groq</div>
+        </div>
+      </div>
+
+      <!-- ── CHAT LIST (NEW) ───────────────────────────────── -->
+      <div class="sb-chats">
+        <div class="sb-chat-header">
+          <span class="sb-label" style="margin-bottom:0">Chats</span>
+          <button id="new-chat-btn" class="btn-new-chat" title="New chat">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            New
+          </button>
+        </div>
+        <div id="chat-list" class="chat-list"></div>
+      </div>
+
+      <div class="sb-body">
+
+        <!-- Model -->
+        <div class="sb-section">
+          <div class="sb-label">Model</div>
+          <div class="sb-model">
+            <div class="live-dot"></div>
+            <div>
+              <div class="sb-model-name" id="sb-model-name">Llama 3.3 70B</div>
+              <div class="sb-model-sub" id="sb-model-sub">via Groq · Versatile</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="sb-section">
+          <div class="sb-label">Session</div>
+          <div class="sb-stats-grid">
+            <div class="sb-stat">
+              <div class="sb-stat-num" id="s-msgs">0</div>
+              <div class="sb-stat-lbl">messages</div>
+            </div>
+            <div class="sb-stat">
+              <div class="sb-stat-num" id="s-ctx">0</div>
+              <div class="sb-stat-lbl">context</div>
+            </div>
+          </div>
+          <div class="sb-tokens">
+            <span>estimated tokens</span>
+            <span id="s-tokens">~0</span>
+          </div>
+        </div>
+
+        <!-- Params -->
+        <div class="sb-section">
+          <div class="sb-label">Parameters</div>
+          <div class="sb-params">
+            <div class="sb-param"><span>max_tokens</span><span>1200</span></div>
+            <div class="sb-param"><span>temperature</span><span>0.7</span></div>
+            <div class="sb-param"><span>mem window</span><span>12 msgs</span></div>
+            <div class="sb-param"><span>streaming</span><span class="tag-on">on</span></div>
+          </div>
+        </div>
+
+        <!-- Quick prompts — filled dynamically by JS each load -->
+        <div class="sb-section">
+          <div class="sb-label">Quick Prompts</div>
+          <div class="sb-prompts" id="sb-prompts-container"></div>
+        </div>
+
+      </div>
+
+      <div class="sb-footer">
+        <button id="reset-btn" class="btn-reset">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/></svg>
+          Reset Conversation
+        </button>
+        <button id="change-key-btn" class="btn-key">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3"/></svg>
+          Change API Key
+        </button>
+        <div class="sb-credit">No data stored · Open source · Free to use</div>
+      </div>
+    </aside>
+
+    <!-- ── MAIN ─────────────────────────────────────────────── -->
+    <main id="main">
+
+      <!-- Topbar -->
+      <header id="topbar">
+        <div class="topbar-l">
+          <button id="menu-btn" class="menu-btn" aria-label="Menu">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
+          <div class="topbar-brand">
+            <span class="topbar-title">AI Assistant</span>
+            <span class="status-pill" id="status-pill" data-s="ready">● ready</span>
+          </div>
+        </div>
+        <div class="topbar-r">
+          <span class="topbar-tokens" id="topbar-tokens">~0 tokens</span>
+          <span class="topbar-model" id="topbar-model">Llama 3.3 70B</span>
+          <!-- Theme toggle -->
+          <button id="theme-btn" class="topbar-key-btn theme-btn" title="Toggle light / dark mode">
+            <span id="theme-icon-dark">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+              </svg>
+            </span>
+            <span id="theme-icon-light" style="display:none">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="5"/>
+                <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+              </svg>
+            </span>
+            <span id="theme-label">Light</span>
+          </button>
+          <button id="topbar-key-btn" class="topbar-key-btn" title="API Key">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3"/></svg>
+            API Key
+          </button>
+        </div>
+      </header>
+
+      <!-- Messages -->
+      <div id="messages">
+        <div id="empty-state">
+          <div class="empty-glow-ring">
+            <div class="empty-ring">
+              <svg width="42" height="42" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2C6.5 2 3 6.5 3 11c0 2.8 1.2 5.2 3 6.8L7.5 22h9l1.5-4.2C20 16.2 21 13.8 21 11c0-4.5-3.5-9-9-9z" fill="url(#lg2)" opacity="0.95"/>
+                <circle cx="9" cy="11" r="1.8" fill="white" opacity="0.9"/>
+                <circle cx="15" cy="11" r="1.8" fill="white" opacity="0.9"/>
+                <defs><linearGradient id="lg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#f97316"/><stop offset="100%" stop-color="#ec4899"/></linearGradient></defs>
+              </svg>
+            </div>
+          </div>
+          <h1 class="empty-title">How can I help you?</h1>
+          <p class="empty-sub">Powered by Groq · Streaming · Memory</p>
+          <div class="empty-chips">
+            <button class="chip" data-p="Explain quantum computing in simple terms">⚛ Quantum computing</button>
+            <button class="chip" data-p="Write a Python function to sort a list">🐍 Python function</button>
+            <button class="chip" data-p="What are the biggest AI trends in 2025?">📡 AI trends 2025</button>
+            <button class="chip" data-p="Help me brainstorm ideas for a mobile app">💡 Brainstorm ideas</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scroll to bottom -->
+      <button id="scroll-btn" class="scroll-btn hidden" title="Scroll to bottom">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+
+      <!-- Error bar -->
+      <div id="error-bar" class="error-bar"></div>
+
+      <!-- Input -->
+      <div id="input-area">
+
+        <div class="input-shell" id="input-shell">
+          <textarea
+            id="chat-input"
+            placeholder="Ask me anything…"
+            rows="1"
+          ></textarea>
+          <div class="input-btns" id="input-btns">
+            <span class="char-count" id="char-count">0</span>
+            <button id="stop-btn" class="stop-btn" title="Stop generating">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="4" y="4" width="16" height="16" rx="2"/>
+              </svg>
+            </button>
+            <button id="send-btn" class="send-btn" title="Send (Enter)">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"/>
+                <polygon points="22 2 15 22 11 13 2 9 22 2" fill="white" stroke="none"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Model selector row (custom dropdown) -->
+        <div class="input-row-model">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="model-row-icon">
+            <circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+          </svg>
+          <div id="model-dropdown" class="model-dropdown">
+            <button id="model-trigger" class="model-trigger" aria-haspopup="listbox" aria-expanded="false">
+              <span id="model-trigger-label">Llama 3.3 70B Versatile</span>
+              <svg class="model-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+            <div id="model-options" class="model-options" role="listbox">
+              <div class="model-option active" data-value="llama-3.3-70b-versatile" role="option">
+                <span class="model-opt-name">Llama 3.3 70B</span>
+                <span class="model-opt-tag">Versatile</span>
+              </div>
+              <div class="model-option" data-value="llama-3.1-8b-instant" role="option">
+                <span class="model-opt-name">Llama 3.1 8B</span>
+                <span class="model-opt-tag">Instant</span>
+              </div>
+              <div class="model-option" data-value="openai/gpt-oss-120b" role="option">
+                <span class="model-opt-name">GPT OSS 120B</span>
+                <span class="model-opt-tag">OpenAI</span>
+              </div>
+              <div class="model-option" data-value="openai/gpt-oss-20b" role="option">
+                <span class="model-opt-name">GPT OSS 20B</span>
+                <span class="model-opt-tag">OpenAI</span>
+              </div>
+              <div class="model-option" data-value="qwen/qwen3-32b" role="option">
+                <span class="model-opt-name">Qwen3 32B</span>
+                <span class="model-opt-tag">Alibaba</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="input-meta">
+          <span class="input-hint">↵ send &nbsp;·&nbsp; shift+↵ newline</span>
+          <span class="input-note" id="input-note">Llama 3.3 70B via Groq</span>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
